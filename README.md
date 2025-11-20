@@ -10,8 +10,7 @@ A simple web application that automatically detects when a skater enters and exi
 
 ## Prerequisites
 
-- Python 3.9+
-- `uv` (fast Python package installer)
+- `uv` (Python package installer)
 - FFmpeg (installed via system package manager, e.g., `brew install ffmpeg` on macOS)
 
 ## Setup
@@ -55,11 +54,3 @@ Use this when you want someone outside your network to reach the app running on 
 5.  Share the external address with your viewer: `http://<your-public-ip>:8000`. You can find your public IP by visiting “what is my IP” in a browser on the same network.
 6.  When done, stop `uvicorn` and remove the port-forwarding rule to close access.
 
-## Port Forwarding in VS Code
-
-If you are running this inside a VS Code remote environment (e.g., SSH, Codespaces, Dev Containers), you need to forward the port to access the web interface from your local machine.
-
-1.  Open the **Ports** view in VS Code (usually in the bottom panel, next to Terminal).
-2.  Click **Forward a Port**.
-3.  Enter port number `8000`.
-4.  Once forwarded, you can access the app by clicking the "Open in Browser" icon (globe icon) or by visiting `http://localhost:8000` in your local browser.
