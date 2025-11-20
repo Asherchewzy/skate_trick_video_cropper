@@ -187,3 +187,21 @@ video {
     color: #FF3B30 !important;
     -webkit-text-fill-color: #FF3B30 !important;
 }
+
+.file-status-list {
+    list-style: none;
+    margin-top: 12px;
+    padding-left: 0;
+    color: var(--text-secondary);
+}
+
+.file-status-list li {
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+}
+
+.download-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}

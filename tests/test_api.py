@@ -15,8 +15,8 @@ def test_flow():
 
     print(f"Uploading {VIDEO_FILE}...")
     with open(VIDEO_FILE, "rb") as f:
-        files = {"file": f}
-        response = requests.post(f"{BASE_URL}/api/upload", files=files)
+        files = [("files", f)]
+        response = requests.post(f"{BASE_URL}/api/upload/batch", files=files)
 
     if response.status_code != 200:
         print(f"Upload failed: {response.text}")
@@ -40,7 +40,15 @@ def test_flow():
         time.sleep(1)
 
     print("Downloading result...")
-    download_url = status["download_url"]
+    items = status.get("items", [])
+    completed = next(
+        (item for item in items if item.get("status") == "completed"), None
+    )
+    if not completed:
+        print("No completed items found.")
+        sys.exit(1)
+
+    download_url = completed["download_url"]
     response = requests.get(f"{BASE_URL}{download_url}")
 
     if response.status_code == 200:

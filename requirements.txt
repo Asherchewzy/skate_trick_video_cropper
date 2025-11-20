@@ -5,3 +5,5 @@ opencv-python
 mediapipe
 moviepy
 numpy
+celery
+redis

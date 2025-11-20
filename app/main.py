@@ -1,121 +1,125 @@
 """FastAPI app wiring upload, processing, and download endpoints."""
 
-import shutil
 import uuid
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .video_processor import VideoProcessor
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-STATIC_DIR = BASE_DIR / "static"
-UPLOAD_DIR = BASE_DIR / "uploads"
-PROCESSING_DIR = BASE_DIR / "processing"
-DOWNLOAD_DIR = BASE_DIR / "downloads"
+from . import settings
+from .job_store import job_store
+from .tasks import process_video_file
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
-for directory in (UPLOAD_DIR, PROCESSING_DIR, DOWNLOAD_DIR):
+for directory in (settings.UPLOAD_DIR, settings.PROCESSING_DIR, settings.DOWNLOAD_DIR):
     directory.mkdir(parents=True, exist_ok=True)
-
-# In-memory job store
-jobs: Dict[str, Dict[str, Any]] = {}
-
-processor = VideoProcessor()
-
-
-def process_video(job_id: str, file_path: Path) -> None:
-    """Run detection/compilation for a single upload and update job metadata."""
-    try:
-        jobs[job_id]["status"] = "processing"
-        jobs[job_id]["message"] = "Detecting humans..."
-
-        # Detect segments
-        segments = processor.detect_human_segments(str(file_path))
-
-        if not segments:
-            jobs[job_id]["status"] = "failed"
-            jobs[job_id]["message"] = "No humans detected in video."
-            return
-
-        jobs[job_id]["message"] = f"Found {len(segments)} segments. Compiling..."
-
-        # Compile video
-        output_filename = f"highlight_{job_id}.mp4"
-        output_path = DOWNLOAD_DIR / output_filename
-
-        result_path = processor.extract_and_compile(
-            str(file_path), segments, str(output_path)
-        )
-
-        if result_path:
-            jobs[job_id]["status"] = "completed"
-            jobs[job_id]["message"] = "Processing complete!"
-            jobs[job_id]["download_url"] = f"/api/download/{job_id}"
-            jobs[job_id]["result_path"] = str(result_path)
-        else:
-            jobs[job_id]["status"] = "failed"
-            jobs[job_id]["message"] = "Failed to compile video."
-
-    except Exception as e:
-        jobs[job_id]["status"] = "failed"
-        jobs[job_id]["message"] = str(e)
-        print(f"Error processing job {job_id}: {e}")
-    finally:
-        # Cleanup upload
-        if file_path.exists():
-            file_path.unlink()
 
 
 @app.get("/")
 async def read_root():
     """Serve the landing page."""
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(settings.STATIC_DIR / "index.html")
+
+
+async def _handle_uploads(files: List[UploadFile]) -> Dict[str, Any]:
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    job_id = str(uuid.uuid4())
+    upload_dir = settings.UPLOAD_DIR / job_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    items: List[Dict[str, Any]] = []
+    task_payloads: List[Dict[str, str]] = []
+    for upload in files:
+        file_id = str(uuid.uuid4())
+        filename = upload.filename or "upload"
+        destination = upload_dir / f"{file_id}_{filename}"
+
+        with open(destination, "wb") as buffer:
+            while True:
+                chunk = upload.file.read(settings.CHUNK_SIZE)
+                if not chunk:
+                    break
+                buffer.write(chunk)
+
+        items.append(
+            {
+                "file_id": file_id,
+                "filename": filename,
+                "status": "queued",
+                "message": "Queued",
+                "download_url": None,
+                "result_path": None,
+            }
+        )
+        task_payloads.append(
+            {
+                "file_id": file_id,
+                "upload_path": str(destination),
+                "filename": filename,
+            }
+        )
+
+    job_store.create_job(job_id, items)
+
+    for task_args in task_payloads:
+        process_video_file.delay(
+            job_id, task_args["file_id"], task_args["upload_path"], task_args["filename"]
+        )
+
+    return {"job_id": job_id, "items": [{"file_id": i["file_id"], "filename": i["filename"]} for i in items]}
 
 
 @app.post("/api/upload")
-async def upload_video(
-    background_tasks: BackgroundTasks, file: UploadFile = File(...)
-) -> Dict[str, str]:
-    """Accept an upload, enqueue processing, and return the job id."""
-    job_id = str(uuid.uuid4())
-    file_path = UPLOAD_DIR / f"{job_id}_{file.filename}"
+async def upload_video(file: UploadFile = File(...)) -> Dict[str, Any]:
+    """Accept a single upload, enqueue processing, and return the job id."""
+    return await _handle_uploads([file])
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
 
-    jobs[job_id] = {
-        "status": "queued",
-        "message": "Video uploaded. Starting processing...",
-        "filename": file.filename,
-    }
-
-    background_tasks.add_task(process_video, job_id, file_path)
-
-    return {"job_id": job_id}
+@app.post("/api/upload/batch")
+async def upload_batch(files: List[UploadFile] = File(...)) -> Dict[str, Any]:
+    """Accept multiple uploads, enqueue processing for each, and return the batch job id."""
+    return await _handle_uploads(files)
 
 
 @app.get("/api/status/{job_id}")
 async def get_status(job_id: str) -> Dict[str, Any]:
-    """Return the status for a given job id."""
-    if job_id not in jobs:
+    """Return the batch + item status for a given job id."""
+    job = job_store.get_job(job_id)
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return jobs[job_id]
+    return job
+
+
+@app.get("/api/download/{job_id}/{file_id}")
+async def download_video_file(job_id: str, file_id: str) -> FileResponse:
+    """Send a compiled highlight clip for a specific file within a batch."""
+    job = job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    item = next((i for i in job["items"] if i["file_id"] == file_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="File not found in job")
+    if item.get("status") != "completed" or not item.get("result_path"):
+        raise HTTPException(status_code=400, detail="Video not ready")
+
+    return FileResponse(item["result_path"], filename=f"highlight_{item['filename']}")
 
 
 @app.get("/api/download/{job_id}")
-async def download_video(job_id: str) -> FileResponse:
-    """Send the compiled highlight reel if the job finished successfully."""
-    if job_id not in jobs:
+async def download_first_completed(job_id: str) -> FileResponse:
+    """Backward-compatible download of the first completed item in a batch."""
+    job = job_store.get_job(job_id)
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    job = jobs[job_id]
-    if job["status"] != "completed":
-        raise HTTPException(status_code=400, detail="Video not ready")
+    item = next((i for i in job["items"] if i.get("status") == "completed"), None)
+    if not item or not item.get("result_path"):
+        raise HTTPException(status_code=400, detail="No completed videos")
 
-    return FileResponse(job["result_path"], filename=f"highlight_{job['filename']}")
+    return FileResponse(item["result_path"], filename=f"highlight_{item['filename']}")

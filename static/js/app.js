@@ -5,8 +5,9 @@ const statusCard = document.getElementById('statusCard');
 const resultCard = document.getElementById('resultCard');
 const statusTitle = document.getElementById('statusTitle');
 const statusMessage = document.getElementById('statusMessage');
+const fileStatusList = document.getElementById('fileStatusList');
 const resultVideo = document.getElementById('resultVideo');
-const downloadBtn = document.getElementById('downloadBtn');
+const downloadList = document.getElementById('downloadList');
 const resetBtn = document.getElementById('resetBtn');
 const errorResetBtn = document.getElementById('errorResetBtn');
 const spinner = document.getElementById('spinner');
@@ -26,7 +27,7 @@ dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('dragover');
     if (e.dataTransfer.files.length) {
-        handleFile(e.dataTransfer.files[0]);
+        handleFiles(Array.from(e.dataTransfer.files));
     }
 });
 
@@ -36,7 +37,7 @@ dropZone.addEventListener('click', () => {
 
 videoInput.addEventListener('change', (e) => {
     if (e.target.files.length) {
-        handleFile(e.target.files[0]);
+        handleFiles(Array.from(e.target.files));
     }
 });
 
@@ -55,11 +56,21 @@ function resetUI() {
     errorResetBtn.classList.add('hidden');
     statusTitle.textContent = 'Processing...';
     statusTitle.classList.remove('error-text');
+    statusMessage.textContent = 'Initializing...';
+    fileStatusList.innerHTML = '';
+    downloadList.innerHTML = '';
+    resultVideo.src = '';
+    resultVideo.classList.remove('hidden');
 }
 
-async function handleFile(file) {
-    if (!file.type.startsWith('video/')) {
-        alert('Please upload a video file.');
+async function handleFiles(files) {
+    if (!files || !files.length) {
+        return;
+    }
+
+    const nonVideo = files.find((file) => !file.type.startsWith('video/'));
+    if (nonVideo) {
+        alert('Please upload only video files.');
         return;
     }
 
@@ -67,7 +78,7 @@ async function handleFile(file) {
     uploadCard.classList.add('hidden');
     statusCard.classList.remove('hidden');
     statusTitle.textContent = 'Uploading...';
-    statusMessage.textContent = 'Sending video to server...';
+    statusMessage.textContent = 'Sending videos to server...';
 
     // Ensure clean state
     spinner.classList.remove('hidden');
@@ -76,10 +87,10 @@ async function handleFile(file) {
     statusTitle.classList.remove('error-text');
 
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach((file) => formData.append('files', file));
 
     try {
-        const response = await fetch('/api/upload', {
+        const response = await fetch('/api/upload/batch', {
             method: 'POST',
             body: formData
         });
@@ -103,7 +114,8 @@ async function pollStatus(jobId) {
             const response = await fetch(`/api/status/${jobId}`);
             const data = await response.json();
 
-            statusMessage.textContent = data.message;
+            statusMessage.textContent = data.message || 'Processing...';
+            renderFileStatus(data.items || []);
 
             if (data.status === 'completed') {
                 clearInterval(poll);
@@ -120,6 +132,16 @@ async function pollStatus(jobId) {
     }, 2000);
 }
 
+function renderFileStatus(items) {
+    fileStatusList.innerHTML = '';
+    items.forEach((item) => {
+        const li = document.createElement('li');
+        const message = item.message ? ` — ${item.message}` : '';
+        li.textContent = `${item.filename}: ${item.status}${message}`;
+        fileStatusList.appendChild(li);
+    });
+}
+
 function showError(message) {
     spinner.classList.add('hidden');
     progressBar.classList.add('hidden');
@@ -134,6 +156,33 @@ function showResult(data) {
     statusCard.classList.add('hidden');
     resultCard.classList.remove('hidden');
 
-    resultVideo.src = data.download_url;
-    downloadBtn.href = data.download_url;
+    const completedItems = (data.items || []).filter(
+        (item) => item.status === 'completed' && item.download_url
+    );
+
+    downloadList.innerHTML = '';
+
+    if (completedItems.length) {
+        resultVideo.classList.remove('hidden');
+        resultVideo.src = completedItems[0].download_url;
+    } else {
+        resultVideo.classList.add('hidden');
+    }
+
+    (data.items || []).forEach((item) => {
+        const container = document.createElement('div');
+        if (item.status === 'completed' && item.download_url) {
+            const link = document.createElement('a');
+            link.className = 'btn primary-btn';
+            link.href = item.download_url;
+            link.download = item.filename || 'highlight.mp4';
+            link.textContent = `Download: ${item.filename}`;
+            container.appendChild(link);
+        } else if (item.status === 'failed') {
+            container.textContent = `${item.filename} failed: ${item.message || ''}`;
+        } else {
+            container.textContent = `${item.filename}: ${item.status}`;
+        }
+        downloadList.appendChild(container);
+    });
 }
