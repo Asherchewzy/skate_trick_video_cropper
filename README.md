@@ -2,6 +2,9 @@
 
 A simple web application that automatically detects when a skater enters and exits the frame in uploaded videos, extracts those segments, and creates a compiled highlight reel.
 
+![Screenshot](assets/ss.png)
+
+
 ## How human detection works
 
 - The app uses [MediaPipe Pose](https://developers.google.com/mediapipe/solutions/vision/pose_landmarker) via `mediapipe` to detect a person. Each frame is fed into the pose estimator, which returns pose landmarks when a human skeleton is visible.
