@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skate Trick Detector</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Skate Trick Detector</h1>
+            <p>Upload your raw footage, get a highlight reel.</p>
+        </header>
+
+        <main>
+            <div class="upload-card" id="uploadCard">
+                <div class="upload-zone" id="dropZone">
+                    <div class="icon">📹</div>
+                    <p>Drop video here or click to upload</p>
+                    <input type="file" id="videoInput" accept="video/*" hidden>
+                </div>
+            </div>
+
+            <div class="status-card hidden" id="statusCard">
+                <div class="status-header">
+                    <h3 id="statusTitle">Processing...</h3>
+                    <span class="spinner" id="spinner"></span>
+                </div>
+                <p id="statusMessage">Initializing...</p>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <button id="errorResetBtn" class="btn secondary-btn hidden">Try Again</button>
+            </div>
+
+            <div class="result-card hidden" id="resultCard">
+                <h3>Highlight Reel Ready!</h3>
+                <video id="resultVideo" controls playsinline></video>
+                <a id="downloadBtn" class="btn primary-btn" href="#" download>Download Video</a>
+                <button id="resetBtn" class="btn secondary-btn">Process Another</button>
+            </div>
+        </main>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

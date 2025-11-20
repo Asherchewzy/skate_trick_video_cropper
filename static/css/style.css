@@ -1,0 +1,189 @@
+:root {
+    --primary-color: #007AFF;
+    --bg-color: #F2F2F7;
+    --card-bg: #FFFFFF;
+    --text-main: #1C1C1E;
+    --text-secondary: #8E8E93;
+    --border-radius: 16px;
+    --spacing: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #000000;
+        --card-bg: #1C1C1E;
+        --text-main: #FFFFFF;
+        --text-secondary: #98989D;
+    }
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+    padding: var(--spacing);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    margin-top: 40px;
+}
+
+header h1 {
+    font-weight: 800;
+    font-size: 2rem;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+header p {
+    color: var(--text-secondary);
+}
+
+.upload-card,
+.status-card,
+.result-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    margin-bottom: var(--spacing);
+    transition: transform 0.2s ease;
+}
+
+.upload-zone {
+    border: 2px dashed var(--text-secondary);
+    border-radius: 12px;
+    padding: 60px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+    border-color: var(--primary-color);
+    background: rgba(0, 122, 255, 0.05);
+}
+
+.upload-zone .icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.hidden {
+    display: none;
+}
+
+.status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 122, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.progress-bar {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 16px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    width: 0%;
+    transition: width 0.3s ease;
+    animation: progress-indeterminate 2s infinite linear;
+}
+
+@keyframes progress-indeterminate {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+video {
+    width: 100%;
+    border-radius: 8px;
+    margin: 16px 0;
+    background: #000;
+}
+
+.btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    text-align: center;
+    text-decoration: none;
+    font-weight: 600;
+    margin-top: 12px;
+    cursor: pointer;
+    border: none;
+    font-size: 1rem;
+}
+
+.primary-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.secondary-btn {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-main);
+}
+
+@media (prefers-color-scheme: dark) {
+    .secondary-btn {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .progress-bar {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+.error-text {
+    color: #FF3B30 !important;
+    -webkit-text-fill-color: #FF3B30 !important;
+}
