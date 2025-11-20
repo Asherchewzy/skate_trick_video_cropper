@@ -27,7 +27,14 @@ A simple web application that automatically detects when a skater enters and exi
 
     ```bash
     source .venv/bin/activate
-    uvicorn app:app --host 0.0.0.0 --port 8000
+    uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ```
+
+3.  **(Optional) Enable git hooks:**
+
+    ```bash
+    pip install pre-commit
+    pre-commit install
     ```
 
 ## Usage
@@ -45,7 +52,7 @@ Use this when you want someone outside your network to reach the app running on 
 
     ```bash
     source .venv/bin/activate
-    uvicorn app:app --host 0.0.0.0 --port 8000
+    uvicorn app.main:app --host 0.0.0.0 --port 8000
     ```
 
 2.  Find your Mac's local IP (needed for router setup): `ipconfig getifaddr en0` (Wi‑Fi) or `en1` (Ethernet).
@@ -53,4 +60,3 @@ Use this when you want someone outside your network to reach the app running on 
 4.  On your home router, forward an external port (e.g., `8000`) to your Mac's local IP at port `8000`. The exact steps vary by router—look for “Port Forwarding”/“Virtual Server”.
 5.  Share the external address with your viewer: `http://<your-public-ip>:8000`. You can find your public IP by visiting “what is my IP” in a browser on the same network.
 6.  When done, stop `uvicorn` and remove the port-forwarding rule to close access.
-

@@ -1,4 +1,6 @@
-import os
+"""Video processing utilities for detecting humans and compiling highlights."""
+
+from typing import List, Sequence, Tuple
 
 import cv2
 import mediapipe as mp
@@ -6,7 +8,10 @@ from moviepy import VideoFileClip, concatenate_videoclips
 
 
 class VideoProcessor:
+    """Detect human presence in videos and compile buffered highlight reels."""
+
     def __init__(self):
+        """Initialize pose detector."""
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(
             static_image_mode=False,
@@ -15,7 +20,9 @@ class VideoProcessor:
             min_tracking_confidence=0.5,
         )
 
-    def detect_human_segments(self, video_path):
+    def detect_human_segments(self, video_path: str) -> List[Tuple[float, float]]:
+        """Return (start, end) segments where a human pose appears in the video."""
+        video_path = str(video_path)
         cap = cv2.VideoCapture(video_path)
         fps = cap.get(cv2.CAP_PROP_FPS)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -55,7 +62,9 @@ class VideoProcessor:
         cap.release()
         return self._merge_close_segments(segments)
 
-    def _merge_close_segments(self, segments, gap_threshold=1.0):
+    def _merge_close_segments(
+        self, segments: Sequence[Tuple[float, float]], gap_threshold: float = 1.0
+    ) -> List[Tuple[float, float]]:
         if not segments:
             return []
 
@@ -73,7 +82,16 @@ class VideoProcessor:
         merged.append((current_start, current_end))
         return merged
 
-    def extract_and_compile(self, video_path, segments, output_path, buffer=2.0):
+    def extract_and_compile(
+        self,
+        video_path: str,
+        segments: Sequence[Tuple[float, float]],
+        output_path: str,
+        buffer: float = 2.0,
+    ) -> str | None:
+        """Compile buffered subclips for detected segments and write to output_path."""
+        video_path = str(video_path)
+        output_path = str(output_path)
         if not segments:
             return None
 
