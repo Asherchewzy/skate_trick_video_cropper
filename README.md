@@ -100,3 +100,5 @@ Thus, this simple web application that automatically detects when a skater enter
 - `CELERY_POOL` (Celery pool implementation; default `solo` for macOS stability)
 - `UPLOAD_CHUNK_SIZE` (bytes per upload chunk; default `8MB`)
 - `POSE_MOVEMENT_THRESHOLD` (minimum pose landmark motion to consider the person “moving”; default `0.02`)
+- `POSE_TARGET_HEIGHT` (optional output height to downscale before detection; unset/0 to keep source)
+- `POSE_TARGET_FPS` (optional output fps to downsample before detection; unset/0 to keep source)
