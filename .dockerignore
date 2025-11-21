@@ -1,0 +1,32 @@
+.git
+.gitignore
+.env
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+*.swp
+*.swo
+*.DS_Store
+
+# Local artifacts and large media
+uploads
+downloads
+processing
+processing_cli
+test_videos
+vids
+dump.rdb
+
+# pytest/cache
+.pytest_cache
+.mypy_cache
+
+# Node/build caches (if any)
+node_modules
+dist
+build
+coverage

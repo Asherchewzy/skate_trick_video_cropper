@@ -2,32 +2,30 @@
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BASE_DIR = Path(__file__).resolve().parents[2]  # project root (one above src/)
-STATIC_DIR = BASE_DIR / "static"  # built frontend assets
-UPLOAD_DIR = BASE_DIR / "uploads"  # where raw uploads are stored
-PROCESSING_DIR = BASE_DIR / "processing"  # temp workspace for conversions
-DOWNLOAD_DIR = BASE_DIR / "downloads"  # final highlight outputs
+# Project root (one above src/)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     """Validated configuration sourced from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env",
+        env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
         env_prefix="",
         extra="ignore",
     )
 
-    # File system paths exposed for convenience
-    BASE_DIR: Path = BASE_DIR
-    STATIC_DIR: Path = STATIC_DIR
-    UPLOAD_DIR: Path = UPLOAD_DIR
-    PROCESSING_DIR: Path = PROCESSING_DIR
-    DOWNLOAD_DIR: Path = DOWNLOAD_DIR
+    # File system configuration
+    BASE_DIR: Path = Field(PROJECT_ROOT, alias="BASE_DIR")  # backwards-compatible alias
+    DATA_ROOT: Path = Field(PROJECT_ROOT, alias="DATA_ROOT")  # where uploads/processing/downloads live
+    STATIC_DIR: Path | None = Field(None, alias="STATIC_DIR")
+    UPLOAD_DIR: Path | None = Field(None, alias="UPLOAD_DIR")
+    PROCESSING_DIR: Path | None = Field(None, alias="PROCESSING_DIR")
+    DOWNLOAD_DIR: Path | None = Field(None, alias="DOWNLOAD_DIR")
 
     # Upload streaming chunk size (bytes)
     CHUNK_SIZE: int = Field(8 * 1024 * 1024, alias="UPLOAD_CHUNK_SIZE")
@@ -51,6 +49,19 @@ class Settings(BaseSettings):
         except (TypeError, ValueError):
             return value
         return None if numeric == 0 else value
+
+    @model_validator(mode="after")
+    def derive_paths(self):
+        """Fill in path defaults and normalize input to Path instances."""
+        data_root = Path(self.DATA_ROOT).resolve()
+        self.DATA_ROOT = data_root
+        self.BASE_DIR = Path(self.BASE_DIR).resolve()
+
+        self.STATIC_DIR = Path(self.STATIC_DIR) if self.STATIC_DIR else PROJECT_ROOT / "static"
+        self.UPLOAD_DIR = Path(self.UPLOAD_DIR) if self.UPLOAD_DIR else data_root / "uploads"
+        self.PROCESSING_DIR = Path(self.PROCESSING_DIR) if self.PROCESSING_DIR else data_root / "processing"
+        self.DOWNLOAD_DIR = Path(self.DOWNLOAD_DIR) if self.DOWNLOAD_DIR else data_root / "downloads"
+        return self
 
 
 settings = Settings()

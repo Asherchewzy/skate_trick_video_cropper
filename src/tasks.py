@@ -1,6 +1,7 @@
 """Celery tasks for per-file video processing."""
 
 from pathlib import Path  # path handling for file locations
+from shutil import rmtree  # cleanup helper
 
 from .celery_app import celery_app  # the shared Celery app instance
 from . import settings  # configuration constants
@@ -97,3 +98,24 @@ def process_video_file(
             upload_path.unlink()
         if prepared_path and prepared_path.exists() and prepared_path != upload_path:
             prepared_path.unlink()
+        _maybe_cleanup_job_dirs(job_id)
+
+
+def _maybe_cleanup_job_dirs(job_id: str) -> None:
+    """Remove per-job upload/processing folders once all items are finished."""
+    job = job_store.get_job(job_id)
+    if not job:
+        return
+
+    items = job.get("items", [])
+    if not items:
+        return
+
+    terminal = {"completed", "failed"}
+    if all(i.get("status") in terminal for i in items):
+        for path in (
+            settings.UPLOAD_DIR / job_id,
+            settings.PROCESSING_DIR / job_id,
+        ):
+            if path.exists():
+                rmtree(path, ignore_errors=True)

@@ -1,7 +1,7 @@
 __pycache__/
 *.mp4
-dump.rdb
-uploads/
+*.MOV
+data/
 vids/
 test_videos/
 .DS_Store

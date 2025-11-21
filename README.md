@@ -18,6 +18,8 @@ Thus, this simple web application that automatically detects when a skater enter
 └─ assets/             # Docs assets (e.g., screenshots)
 ```
 
+All runtime file paths (`uploads/`, `processing/`, `downloads/`) are derived from `DATA_ROOT` (defaults to the repo root). Containers set `DATA_ROOT=/data` and share that path via a volume.
+
 
 ## How human detection works
 
@@ -30,6 +32,7 @@ Thus, this simple web application that automatically detects when a skater enter
 - `uv` (Python package installer)
 - FFmpeg `brew install ffmpeg` on macOS
 - Redis (for Celery broker/result + job state) `brew install redis` then `redis-server`.
+- Docker (optional, to run everything in containers)
 
 
 ## Setup
@@ -77,6 +80,19 @@ Thus, this simple web application that automatically detects when a skater enter
     pre-commit install
     ```
 
+## Docker / Compose
+
+Run the full stack (API + worker + Redis) in containers with shared storage:
+
+```bash
+docker compose build        # Multi-stage build installs dependencies and ffmpeg
+docker compose up -d        # Starts api, worker, and redis
+```
+
+- Data lives under `/data` inside the containers and is persisted in the `media_data` volume.
+- Redis state is stored in the `redis_data` volume.
+- Stop with `docker compose down`; add `-v` to drop volumes.
+
 ## Usage
 
 1.  Open your browser and navigate to `http://localhost:8000`.
@@ -102,3 +118,5 @@ Thus, this simple web application that automatically detects when a skater enter
 - `POSE_MOVEMENT_THRESHOLD` (minimum pose landmark motion to consider the person “moving”; default `0.02`)
 - `POSE_TARGET_HEIGHT` (optional output height to downscale before detection; unset/0 to keep source)
 - `POSE_TARGET_FPS` (optional output fps to downsample before detection; unset/0 to keep source)
+- `DATA_ROOT` (base directory for `uploads/`, `processing/`, `downloads/`; defaults to repo root, containers set `/data`. For local parity with Docker, set `DATA_ROOT=./data` in `.env`.)
+- `STATIC_DIR` / `UPLOAD_DIR` / `PROCESSING_DIR` / `DOWNLOAD_DIR` (override individual paths if needed)

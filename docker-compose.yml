@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no"] #ephemeral
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      target: runtime
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATA_ROOT: /data
+    volumes:
+      - media_data:/data
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: runtime
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATA_ROOT: /data
+    volumes:
+      - media_data:/data
+    command: ["celery", "-A", "src.celery_app.celery_app", "worker", "-l", "info"]
+    restart: unless-stopped
+
+volumes:
+  media_data:
+  redis_data:

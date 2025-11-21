@@ -3,7 +3,7 @@
 ## Overview
 - Purpose: detect when a skater is in motion in long raw videos, cut those regions, and build a highlight reel per upload.
 - Runtime shape: a FastAPI web server handles uploads/serves the UI, Redis acts as both Celery broker/result backend and lightweight job store, and Celery workers run CPU/GPU-heavy video work. A static frontend polls job status and surfaces download links.
-- Storage layout: `uploads/{job_id}` for incoming originals, `processing/{job_id}` for converted/temporary MP4s, `downloads/{job_id}` for compiled highlights. Temporary and original files are deleted after processing finishes.
+- Storage layout: paths live under `DATA_ROOT` (default repo root, containers set `/data` via a volume) with `uploads/{job_id}` for incoming originals, `processing/{job_id}` for converted/temporary MP4s, `downloads/{job_id}` for compiled highlights. Temporary and original files are deleted after processing finishes.
 
 ## Components
 - **API/UI (FastAPI)** — `src/main.py`
@@ -39,8 +39,9 @@
 
 ## Deployment/runtime notes
 - Start stack locally with `scripts/dev_up.sh` (activates `.venv`, launches Redis if using the default URL, starts Celery worker, starts uvicorn on `PORT`).
+- Docker: multi-stage `Dockerfile` builds a non-root image with ffmpeg + dependencies; `docker-compose.yml` brings up API, worker, and Redis with shared `/data` storage (volume-backed).
 - Required system deps: ffmpeg, Redis; Python libs in `requirements.txt` (FastAPI, Celery, Redis client, MediaPipe, OpenCV, MoviePy).
-- Env vars: `REDIS_URL`, `PORT`, `CELERY_CONCURRENCY`, `CELERY_POOL`, `UPLOAD_CHUNK_SIZE`, `POSE_MOVEMENT_THRESHOLD`, `POSE_TARGET_HEIGHT`, `POSE_TARGET_FPS`.
+- Env vars: `REDIS_URL`, `PORT`, `CELERY_CONCURRENCY`, `CELERY_POOL`, `UPLOAD_CHUNK_SIZE`, `POSE_MOVEMENT_THRESHOLD`, `POSE_TARGET_HEIGHT`, `POSE_TARGET_FPS`, `DATA_ROOT` (plus optional overrides for `STATIC_DIR`/`UPLOAD_DIR`/`PROCESSING_DIR`/`DOWNLOAD_DIR`).
 - Scaling: add more Celery workers/hosts pointing to the same Redis; ensure shared disk or persisted object storage for `downloads/` if running multiple nodes. Uvicorn can be fronted by a reverse proxy (e.g., nginx) for TLS/static caching.
 
 ## Reliability/observability

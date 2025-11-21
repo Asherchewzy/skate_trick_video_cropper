@@ -267,7 +267,7 @@ class VideoProcessor:
     def extract_and_compile(
         self,
         video_path: str,
-        segments: Sequence[Tuple[float, float]],
+        segments: Sequence[tuple[float, float]],
         output_path: str,
         buffer_before: float = 2.0,
         buffer_after: float = 3.0,
@@ -317,6 +317,7 @@ class VideoProcessor:
 
 if __name__ == "__main__":
     import argparse
+    from . import settings
 
     # Example: python app/video_processor.py input.mov --out downloads/output.mp4 --buffer-before 2 --buffer-after 3
     # python app/video_processor.py test_videos/test1.mov --out downloads/test1_out.mp4 
@@ -375,7 +376,7 @@ if __name__ == "__main__":
     processor = VideoProcessor()
     mp4_path = processor.prepare_video_file(
         args.video,
-        processing_dir="processing_cli",
+        processing_dir=settings.PROCESSING_DIR,
         job_id="cli",
         target_height=args.resize_height,
         target_fps=args.target_fps,
