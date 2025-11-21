@@ -6,18 +6,18 @@
 - Storage layout: `uploads/{job_id}` for incoming originals, `processing/{job_id}` for converted/temporary MP4s, `downloads/{job_id}` for compiled highlights. Temporary and original files are deleted after processing finishes.
 
 ## Components
-- **API/UI (FastAPI)** — `app/main.py`
+- **API/UI (FastAPI)** — `src/main.py`
   - Serves `static/index.html` + assets.
   - Streaming upload endpoints (`/api/upload`, `/api/upload/batch`) write files to `uploads/` in chunks to avoid memory spikes.
   - Status/download endpoints read job state from Redis and return compiled artifacts.
-- **Job store (Redis)** — `app/job_store.py`
+- **Job store (Redis)** — `src/job_store.py`
   - Persists per-job + per-file status, messages, and result paths under keys `job:{job_id}`.
   - Derives aggregate batch status from item states (queued/processing/completed/failed) so the UI can display progress.
-- **Worker queue (Celery + Redis)** — `app/celery_app.py`, `app/tasks.py`
+- **Worker queue (Celery + Redis)** — `src/celery_app.py`, `src/tasks.py`
   - Celery uses Redis for broker + result backend; workers listen for `process_video_file` tasks.
   - Each upload schedules one task; concurrency controlled by `CELERY_CONCURRENCY`/`CELERY_POOL`.
-- **Video processing pipeline** — `app/video_processor.py`
-  - `prepare_video_file`: converts non-MP4 inputs to MP4 via ffmpeg (yuv420p, faststart) to normalize codecs.
+- **Video processing pipeline** — `src/video_processor.py`
+  - `prepare_video_file`: converts non-MP4 inputs to MP4 via ffmpeg (yuv420p, faststart), optionally downscaling (`POSE_TARGET_HEIGHT`) and/or reducing FPS (`POSE_TARGET_FPS`) to speed pose detection.
   - `detect_human_segments`: runs MediaPipe Pose on frames, calculating average landmark deltas; marks a segment when movement exceeds `POSE_MOVEMENT_THRESHOLD` for at least `min_moving_frames`, closes once stationary for `max_stationary_frames`, then merges nearby segments.
   - `extract_and_compile`: buffers [-2s, +3s] around each segment, trims with MoviePy, concatenates, and writes the highlight MP4.
 - **Frontend** — `static/js/app.js`
@@ -40,7 +40,7 @@
 ## Deployment/runtime notes
 - Start stack locally with `scripts/dev_up.sh` (activates `.venv`, launches Redis if using the default URL, starts Celery worker, starts uvicorn on `PORT`).
 - Required system deps: ffmpeg, Redis; Python libs in `requirements.txt` (FastAPI, Celery, Redis client, MediaPipe, OpenCV, MoviePy).
-- Env vars: `REDIS_URL`, `PORT`, `CELERY_CONCURRENCY`, `CELERY_POOL`, `UPLOAD_CHUNK_SIZE`, `POSE_MOVEMENT_THRESHOLD`.
+- Env vars: `REDIS_URL`, `PORT`, `CELERY_CONCURRENCY`, `CELERY_POOL`, `UPLOAD_CHUNK_SIZE`, `POSE_MOVEMENT_THRESHOLD`, `POSE_TARGET_HEIGHT`, `POSE_TARGET_FPS`.
 - Scaling: add more Celery workers/hosts pointing to the same Redis; ensure shared disk or persisted object storage for `downloads/` if running multiple nodes. Uvicorn can be fronted by a reverse proxy (e.g., nginx) for TLS/static caching.
 
 ## Reliability/observability
@@ -70,3 +70,15 @@
 - Smarter chunk-level parallelism with overlap handling and dedupe to accelerate long videos.
 - Add basic auth or API keys for uploads/downloads; enforce max file size and MIME validation server-side.
 - Retry/backoff around ffmpeg/IO failures and isolate per-job temp space to simplify cleanup.
+
+---------------------
+
+# Suggest building in layers so you can test each piece early:
+
+- Start with the video-processing pipeline in isolation: read a clip, run pose detection, extract segments, compile a highlight. Get CLI scripts working and tuned thresholds.
+- Add a minimal job model/state (in-memory or a simple Redis schema) to track per-file status and messages.
+- Wrap the pipeline in a worker (Celery or alternatives) that consumes tasks and updates job state; add error handling and cleanup.
+- Expose a minimal API (FastAPI) for upload/status/download; wire it to enqueue worker tasks and serve a static test page.
+- Build the frontend to upload multiple files and poll status; keep it simple first, then polish UX.
+- Add persistence/infra plumbing: bucket/disk layout, Redis/queue config, environment variables, startup scripts.
+- Finish with observability and hardening: logging, metrics on queue depth and task latency, health checks, auth/rate limits, retries/backoff, and deployment manifests (e.g., Docker, Helm).

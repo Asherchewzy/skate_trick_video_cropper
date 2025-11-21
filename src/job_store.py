@@ -2,7 +2,7 @@
 
 import json
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import redis
 
@@ -13,13 +13,15 @@ class JobStore:
     """Persist job + item state in Redis so workers and API share progress."""
 
     def __init__(self, redis_url: str | None = None):
-        self.redis_url = redis_url or settings.REDIS_URL
-        self.client = redis.from_url(self.redis_url, decode_responses=True)
+        self.redis_url = redis_url or settings.REDIS_URL  # allow override for tests
+        self.client = redis.from_url(self.redis_url, decode_responses=True)  # string responses
 
     def _key(self, job_id: str) -> str:
+        # Namespaced key per batch job
         return f"job:{job_id}"
 
-    def create_job(self, job_id: str, items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def create_job(self, job_id: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+        # Initial payload we persist in Redis
         job = {
             "job_id": job_id,
             "status": "queued",
@@ -30,21 +32,21 @@ class JobStore:
         self._save(job)
         return job
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
-        raw = self.client.get(self._key(job_id))
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        raw = self.client.get(self._key(job_id))  # fetch JSON string or None
         if raw is None:
             return None
-        return json.loads(raw)
+        return json.loads(raw)  # decode back into a Python dict
 
-    def update_item(self, job_id: str, file_id: str, **fields: Any) -> Optional[Dict[str, Any]]:
-        job = self.get_job(job_id)
+    def update_item(self, job_id: str, file_id: str, **fields: Any) -> dict[str, Any] | None:
+        job = self.get_job(job_id)  # load the current job snapshot
         if not job:
-            return None
+            return None  # unknown job
 
         updated = False
-        for item in job["items"]:
+        for item in job["items"]:  # find the matching file entry
             if item["file_id"] == file_id:
-                for key, value in fields.items():
+                for key, value in fields.items():  # set provided fields
                     if value is not None:
                         item[key] = value
                 updated = True
@@ -53,12 +55,12 @@ class JobStore:
         if not updated:
             return None
 
-        job["status"], job["message"] = self._derive_batch_status(job["items"])
-        self._save(job)
+        job["status"], job["message"] = self._derive_batch_status(job["items"])  # recalc batch status
+        self._save(job)  # write back to Redis
         return job
 
-    def update_job(self, job_id: str, **fields: Any) -> Optional[Dict[str, Any]]:
-        job = self.get_job(job_id)
+    def update_job(self, job_id: str, **fields: Any) -> dict[str, Any] | None:
+        job = self.get_job(job_id)  # fetch existing job
         if not job:
             return None
 
@@ -69,13 +71,14 @@ class JobStore:
         if "items" in fields:
             job["status"], job["message"] = self._derive_batch_status(job["items"])
 
-        self._save(job)
+        self._save(job)  # persist the modified job
         return job
 
-    def _derive_batch_status(self, items: List[Dict[str, Any]]) -> Tuple[str, str]:
+    def _derive_batch_status(self, items: list[dict[str, Any]]) -> tuple[str, str]:
         if not items:
             return "failed", "No files provided."
 
+        # Aggregate item states to describe the overall batch
         total = len(items)
         completed = sum(1 for i in items if i.get("status") == "completed")
         failed = sum(1 for i in items if i.get("status") == "failed")
@@ -90,7 +93,8 @@ class JobStore:
             return "processing", f"Processing {processing}/{total}. Completed {completed}."
         return "queued", f"Waiting to process {queued}/{total}."
 
-    def _save(self, job: Dict[str, Any]) -> None:
+    def _save(self, job: dict[str, Any]) -> None:
+        # Store the job as a JSON string at a deterministic key
         self.client.set(self._key(job["job_id"]), json.dumps(job))
 
 

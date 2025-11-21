@@ -4,6 +4,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 PORT="${PORT:-8000}"
 REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
 CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-2}"
@@ -55,11 +56,11 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Starting Celery worker (concurrency=$CELERY_CONCURRENCY)..."
-celery -A app.celery_app.celery_app worker -l info --concurrency "$CELERY_CONCURRENCY" --pool "$CELERY_POOL" &
+celery -A src.celery_app.celery_app worker -l info --concurrency "$CELERY_CONCURRENCY" --pool "$CELERY_POOL" &
 CELERY_PID=$!
 
 echo "Starting FastAPI (uvicorn) on port $PORT..."
-uvicorn app.main:app --host 0.0.0.0 --port "$PORT" &
+uvicorn src.main:app --host 0.0.0.0 --port "$PORT" &
 UVICORN_PID=$!
 
 echo "Services started."

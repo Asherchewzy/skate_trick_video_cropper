@@ -1,0 +1,9 @@
+__pycache__/
+*.mp4
+dump.rdb
+uploads/
+vids/
+test_videos/
+.DS_Store
+.env*
+*.env

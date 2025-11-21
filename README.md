@@ -8,7 +8,7 @@ Thus, this simple web application that automatically detects when a skater enter
 
 ```
 .
-├─ app/                # FastAPI endpoints, Celery tasks, settings, job store
+├─ src/                # FastAPI endpoints, Celery tasks, settings, job store
 ├─ static/             # Frontend HTML/CSS/JS
 ├─ uploads/            # Incoming files (per job)
 ├─ processing/         # Temp converted clips (per job)
@@ -60,14 +60,14 @@ Thus, this simple web application that automatically detects when a skater enter
 
     ```bash
     source .venv/bin/activate
-    celery -A app.celery_app.celery_app worker -l info
+    celery -A src.celery_app.celery_app worker -l info
     ```
 
 5.  **Run the server (manual start; the script already does this):**
 
     ```bash
     source .venv/bin/activate
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
+    uvicorn src.main:app --host 0.0.0.0 --port 8000
     ```
 
 6.  **(Optional) Enable git hooks:**

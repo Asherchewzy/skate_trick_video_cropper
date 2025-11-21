@@ -1,8 +1,23 @@
 """Video processing utilities for detecting humans and compiling highlights."""
 
+from collections.abc import Sequence
+import os
 import subprocess
+import warnings
 from pathlib import Path
-from typing import List, Sequence, Tuple
+
+os.environ["GLOG_minloglevel"] = "2"  # 0=all, 1=warn, 2=error
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # silence TF/TFLite info/warn
+warnings.filterwarnings(
+    "ignore",
+    message="SymbolDatabase.GetPrototype\\(\\) is deprecated",
+    category=UserWarning,
+)
+
+from absl import logging
+
+logging.set_verbosity(logging.ERROR)
+logging.set_stderrthreshold(logging.ERROR)
 
 import cv2
 import mediapipe as mp
@@ -128,7 +143,7 @@ class VideoProcessor:
         movement_threshold: float = 0.02,
         min_moving_frames: int = 3,
         max_stationary_frames: int = 20,
-    ) -> List[Tuple[float, float]]:
+    ) -> list[tuple[float, float]]:
         """Detect moving-human segments.
 
         Args:
@@ -211,8 +226,8 @@ class VideoProcessor:
         return self._merge_close_segments(segments)
 
     def _merge_close_segments(
-        self, segments: Sequence[Tuple[float, float]], gap_threshold: float = 1.0
-    ) -> List[Tuple[float, float]]:
+        self, segments: Sequence[tuple[float, float]], gap_threshold: float = 1.0
+    ) -> list[tuple[float, float]]:
         """Merge adjacent segments if the gap between them is below the threshold."""
         if not segments:
             return []
@@ -302,9 +317,10 @@ class VideoProcessor:
 
 if __name__ == "__main__":
     import argparse
-    
+
     # Example: python app/video_processor.py input.mov --out downloads/output.mp4 --buffer-before 2 --buffer-after 3
-    
+    # python app/video_processor.py test_videos/test1.mov --out downloads/test1_out.mp4 
+
     parser = argparse.ArgumentParser(description="Detect motion segments and compile highlights.")
     parser.add_argument("video", help="Path to an input video (mp4/mov/etc).")
     parser.add_argument(
@@ -345,14 +361,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--resize-height",
         type=int,
-        default=None,
-        help="Optional output height to downscale before detection (keeps aspect ratio).",
+        default=720,
+        help="Output height to downscale before detection (keeps aspect ratio). Use 0 to keep source.",
     )
     parser.add_argument(
         "--target-fps",
         type=float,
-        default=None,
-        help="Optional output FPS to downsample before detection.",
+        default=30,
+        help="Output FPS to downsample before detection. Use 0 to keep source.",
     )
     args = parser.parse_args()
 
