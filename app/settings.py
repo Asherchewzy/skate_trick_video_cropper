@@ -13,7 +13,7 @@ DOWNLOAD_DIR = BASE_DIR / "downloads"
 CHUNK_SIZE = int(os.getenv("UPLOAD_CHUNK_SIZE", 8 * 1024 * 1024))
 
 # Pose motion threshold to consider a person "moving"
-POSE_MOVEMENT_THRESHOLD = float(os.getenv("POSE_MOVEMENT_THRESHOLD", "0.02"))
+POSE_MOVEMENT_THRESHOLD = float(os.getenv("POSE_MOVEMENT_THRESHOLD", "0.01"))
 
 # Redis broker/result backend for Celery and job state
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
