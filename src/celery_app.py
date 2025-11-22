@@ -1,8 +1,8 @@
 """Celery application shared by API and worker processes."""
 
-from celery import Celery  # Celery app factory
+from celery import Celery 
 
-from . import settings  # provides Redis URL
+from . import settings  
 
 # Single Celery app used by both the FastAPI process (to enqueue) and the worker
 celery_app = Celery(
@@ -11,13 +11,12 @@ celery_app = Celery(
     backend=settings.REDIS_URL,  # store task results/progress (also Redis here)
 )
 
-# Prefer JSON payloads for compatibility/safety
 celery_app.conf.update(
-    task_serializer="json",  # how tasks are serialized when sent to broker
-    accept_content=["json"],  # only accept JSON from publishers
-    result_serializer="json",  # serialize results in JSON too
+    task_serializer="json",  
+    accept_content=["json"],  
+    result_serializer="json", 
     timezone="UTC",  # default timezone for tasks/schedules
 )
 
-# Load any @celery_app.task definitions in this package (e.g., tasks.py)
+# Load any @celery_app.task definitions in src
 celery_app.autodiscover_tasks(["src"])
